@@ -1,0 +1,4 @@
+Query chain:
+ →Find: Target Application 'app.baluchon.ios'
+  ↪︎Find: Descendants matching type Button
+    ↪︎Find: Elements matching predicate '"travel-mode-button" IN identifiers'
