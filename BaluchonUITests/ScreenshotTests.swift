@@ -30,7 +30,7 @@ final class ScreenshotTests: XCTestCase {
         pause(1)
         snapshot("04-lancer-le-projet")
         app.buttons["confirm-launch"].tap()
-        XCTAssertTrue(app.buttons["travel-mode-button"].waitForExistence(timeout: 10) || app.staticTexts["Préparation"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["IDÉE"].waitForExistence(timeout: 10), "Tableau de bord non affiché")
         pause(1)
         snapshot("05-tableau-de-bord-nouveau")
 
