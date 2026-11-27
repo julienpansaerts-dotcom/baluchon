@@ -12,7 +12,7 @@ final class ShareViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
-        statusLabel.text = "Ajout à Baluchon…"
+        statusLabel.text = "Dans le carnet…"
         statusLabel.font = .preferredFont(forTextStyle: .headline)
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
@@ -80,8 +80,8 @@ final class ShareViewController: UIViewController {
 
         spinner.stopAnimating()
         statusLabel.text = saved > 0
-            ? "✅ Ajouté à Baluchon !\nOuvre l'app pour voir l'analyse."
-            : "Rien à importer ici 🤔"
+            ? "Glissé dans le carnet.\nOuvre Baluchon pour voir où ça t'emmène."
+            : "Rien à glisser dans le carnet ici."
         try? await Task.sleep(nanoseconds: 1_200_000_000)
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }

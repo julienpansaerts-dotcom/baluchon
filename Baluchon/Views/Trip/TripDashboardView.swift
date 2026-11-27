@@ -1,13 +1,15 @@
 import SwiftData
 import SwiftUI
 
-/// Tableau de bord du projet : pourcentage de préparation, échéances, accès aux listes.
+/// Tableau de bord du projet : la carte d'embarquement, l'avion qui avance
+/// avec la préparation, les prochaines échéances et l'accès aux listes.
 struct TripDashboardView: View {
     @Bindable var trip: Trip
     @State private var showingTravelSetup = false
     @State private var editingDate = false
 
     private var readiness: Readiness { trip.readiness }
+    private var color: Color { DestinationStyle.color(for: trip.destinationKey) }
 
     private var upcoming: [PrepTask] {
         trip.tasks.filter { !$0.isDone }
@@ -23,103 +25,197 @@ struct TripDashboardView: View {
                                                to: Calendar.current.startOfDay(for: start)).day
     }
 
+    private var countdown: String {
+        guard let days = daysUntilDeparture else { return "DATE À FIXER" }
+        if days > 0 { return "J-\(days)" }
+        if days == 0 { return "JOUR J" }
+        return "EN VOYAGE"
+    }
+
     var body: some View {
         List {
             Section {
-                HStack(spacing: 20) {
-                    ProgressRing(percent: readiness.percent)
-                        .frame(width: 110, height: 110)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Préparation").font(.headline)
-                        if let days = daysUntilDeparture {
-                            Text(days >= 0 ? "J-\(days)" : "Voyage en cours ou passé")
-                                .font(.title.bold())
-                        }
-                        if readiness.blockers > 0 {
-                            Label("\(readiness.blockers) point(s) bloquant(s)", systemImage: "exclamationmark.octagon.fill")
-                                .font(.callout).foregroundStyle(.red)
-                        } else {
-                            Label("Aucun point bloquant", systemImage: "checkmark.shield.fill")
-                                .font(.callout).foregroundStyle(.green)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
+                pass
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
-            Section("Prochaines étapes") {
+            Section {
                 if upcoming.isEmpty {
-                    Label("Tout est prêt, bon voyage ! 🎉", systemImage: "party.popper")
+                    HStack(spacing: 12) {
+                        StampMark(size: 34, color: Theme.sea)
+                        Text("Tout est prêt. Bon voyage.").font(.display(17)).foregroundStyle(Theme.ink)
+                    }
+                    .cardRow()
                 }
                 ForEach(upcoming.prefix(4)) { task in
                     TaskRow(task: task, startDate: trip.startDate)
+                        .cardRow()
                 }
+            } header: {
+                SectionLabel("Prochaines étapes")
             }
 
-            Section("Préparer") {
+            Section {
                 NavigationLink { TasksView(trip: trip) } label: {
                     row("Plan de préparation", "checklist", "\(trip.tasks.filter(\.isDone).count)/\(trip.tasks.count)")
                 }
+                .cardRow()
                 NavigationLink { ItineraryView(trip: trip) } label: {
-                    row("Itinéraire jour par jour", "calendar", "\(trip.totalDays) j")
+                    row("Itinéraire jour par jour", "point.topleft.down.to.point.bottomright.curvepath", "\(trip.totalDays) J")
                 }
+                .cardRow()
                 NavigationLink { BookingsView(trip: trip) } label: {
-                    row("Réservations", "envelope.open", "\(trip.bookings.count)")
+                    row("Réservations", "ticket", "\(trip.bookings.count)")
                 }
+                .cardRow()
                 NavigationLink { PackingView(trip: trip) } label: {
                     row("Valise", "suitcase", "\(trip.packing.filter(\.isPacked).count)/\(trip.packing.count)")
                 }
+                .cardRow()
+            } header: {
+                SectionLabel("Le carnet")
             }
 
-            Section("Le voyage") {
-                LabeledContent("Rythme", value: trip.pace.label)
-                LabeledContent("Voyageurs", value: "\(trip.travelers)")
-                if let start = trip.startDate, let end = trip.endDate {
-                    LabeledContent("Dates", value: "\(start.shortFrench) → \(end.shortFrench)")
-                }
-                Button(trip.startDate == nil ? "Fixer la date de départ" : "Modifier la date de départ") { editingDate = true }
+            Section {
                 ForEach(trip.sortedStops) { stop in
                     HStack {
-                        Image(systemName: "mappin.circle.fill").foregroundStyle(.tint)
-                        Text(stop.city)
+                        Text(stop.city).font(.display(17)).foregroundStyle(Theme.ink)
                         Spacer()
-                        Text("\(stop.nights) nuit\(stop.nights > 1 ? "s" : "")").foregroundStyle(.secondary)
+                        Text("\(stop.nights) N").font(.ticket(13, weight: .bold)).foregroundStyle(Theme.inkSoft)
                     }
+                    .cardRow()
                 }
+                HStack {
+                    Text("Rythme").foregroundStyle(Theme.inkSoft)
+                    Spacer()
+                    Text(trip.pace.label).font(.display(16)).foregroundStyle(Theme.ink)
+                }
+                .cardRow()
+                Button(trip.startDate == nil ? "Fixer la date de départ" : "Modifier la date de départ") { editingDate = true }
+                    .font(.ticket(13, weight: .bold))
+                    .cardRow()
+            } header: {
+                SectionLabel("Le parcours")
             }
 
             Section {
                 Button {
                     showingTravelSetup = true
                 } label: {
-                    Label("Passer en mode voyage", systemImage: "airplane.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+                    HStack {
+                        Text("Passer en mode voyage")
+                        Spacer()
+                        Image(systemName: "arrow.right").font(.system(size: 15, weight: .bold))
+                    }
+                    .padding(.horizontal, 20)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(TicketButtonStyle(fill: Theme.ink, foreground: Theme.card))
+                .accessibilityIdentifier("travel-mode-button")
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             } footer: {
-                Text("L'app se transforme et fonctionne sans réseau : déroulé du jour, réservations, phrases, convertisseur, urgences.")
+                Text("Le carnet se transforme en tableau des départs et fonctionne sans réseau : programme du jour, réservations, phrases, convertisseur, urgences.")
+                    .padding(.top, 6)
             }
         }
+        .paperBackground()
         .navigationTitle(trip.name)
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingTravelSetup) {
             TravelModeSetupView(trip: trip)
         }
         .sheet(isPresented: $editingDate) {
             DateEditor(trip: trip)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    /// Carte d'embarquement : destination, compte à rebours et avion de progression.
+    private var pass: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    SectionLabel("Embarquement", color: Theme.card.opacity(0.8))
+                    Spacer()
+                    Text(countdown).font(.ticket(13, weight: .bold)).foregroundStyle(Theme.card)
+                }
+                HStack(alignment: .lastTextBaseline) {
+                    Text(trip.name)
+                        .font(.display(28, weight: .bold))
+                        .foregroundStyle(Theme.card)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                    Spacer()
+                    Text(DestinationStyle.code(for: trip.destinationKey))
+                        .font(.ticket(28, weight: .bold))
+                        .foregroundStyle(Theme.card.opacity(0.9))
+                }
+                HStack(spacing: 18) {
+                    passField("Départ", trip.startDate?.ticketDate ?? "--")
+                    passField("Durée", "\(trip.totalDays) J")
+                    passField("Pass.", "\(trip.travelers)")
+                    passField("Étapes", "\(trip.stops.count)")
+                }
+            }
+            .padding(18)
+            .background(color)
+
+            TicketTear()
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(readiness.percent)")
+                        .font(.display(44, weight: .bold))
+                        .foregroundStyle(Theme.ink)
+                        .contentTransition(.numericText())
+                    Text("% prêt").font(.ticket(14, weight: .semibold)).foregroundStyle(Theme.inkSoft)
+                    Spacer()
+                    if readiness.blockers > 0 {
+                        InkTag(text: "\(readiness.blockers) bloquant\(readiness.blockers > 1 ? "s" : "")")
+                    } else {
+                        InkTag(text: "Rien de bloquant", color: Theme.sea)
+                    }
+                }
+                FlightProgress(percent: readiness.percent, tint: color)
+                    .frame(height: 46)
+                    .padding(.horizontal, 6)
+                    .padding(.top, 8)
+                HStack {
+                    Text("IDÉE").font(.ticket(10, weight: .bold))
+                    Spacer()
+                    Text("DÉPART").font(.ticket(10, weight: .bold))
+                }
+                .foregroundStyle(Theme.inkSoft)
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 18)
+            .animation(.snappy, value: readiness.percent)
+        }
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
+    }
+
+    private func passField(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased()).font(.ticket(9, weight: .semibold)).foregroundStyle(Theme.card.opacity(0.75))
+            Text(value).font(.ticket(14, weight: .bold)).foregroundStyle(Theme.card)
         }
     }
 
     private func row(_ title: String, _ symbol: String, _ value: String) -> some View {
-        HStack {
-            Label(title, systemImage: symbol)
+        HStack(spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: 22)
+            Text(title).font(.display(17)).foregroundStyle(Theme.ink)
             Spacer()
-            Text(value).foregroundStyle(.secondary).monospacedDigit()
+            Text(value).font(.ticket(13, weight: .semibold)).foregroundStyle(Theme.inkSoft)
         }
+        .padding(.vertical, 3)
     }
 }
 
@@ -133,7 +229,9 @@ private struct DateEditor: View {
             Form {
                 DatePicker("Départ", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
+                    .cardRow()
             }
+            .paperBackground()
             .navigationTitle("Date de départ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -157,42 +255,45 @@ private struct DateEditor: View {
     }
 }
 
+/// Une tâche du plan : case de formulaire, tampon une fois faite.
 struct TaskRow: View {
     @Bindable var task: PrepTask
     let startDate: Date?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             Button {
-                withAnimation { task.isDone.toggle() }
+                task.isDone.toggle()
             } label: {
-                Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(task.isDone ? Color.green : Color.secondary)
+                StampCheckbox(isOn: task.isDone)
             }
             .buttonStyle(.plain)
+            .sensoryFeedback(.impact(weight: .medium), trigger: task.isDone)
+            .accessibilityLabel(task.isDone ? "Fait" : "À faire")
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(task.title)
-                    .strikethrough(task.isDone)
-                    .foregroundStyle(task.isDone ? Color.secondary : Color.primary)
+                    .font(.display(16, weight: .medium))
+                    .strikethrough(task.isDone, color: Theme.inkSoft)
+                    .foregroundStyle(task.isDone ? Theme.inkSoft : Theme.ink)
                 HStack(spacing: 8) {
                     if task.isBlocking && !task.isDone {
-                        Text("Bloquant").font(.caption2.bold()).foregroundStyle(.white)
-                            .padding(.horizontal, 6).padding(.vertical, 1)
-                            .background(.red, in: Capsule())
+                        InkTag(text: "Bloquant")
                     }
                     if let due = task.dueDate(startDate: startDate) {
                         let late = due < Date() && !task.isDone
-                        Label("Avant le \(due.shortFrench)", systemImage: "calendar.badge.clock")
-                            .foregroundStyle(late ? Color.red : Color.secondary)
+                        Text("AVANT LE \(due.ticketDate)")
+                            .font(.ticket(10, weight: .semibold))
+                            .foregroundStyle(late ? Theme.stamp : Theme.inkSoft)
                     } else if task.leadDays > 0 {
-                        Label("\(task.leadDays) j avant le départ", systemImage: "clock")
-                            .foregroundStyle(.secondary)
+                        Text("J-\(task.leadDays)")
+                            .font(.ticket(10, weight: .semibold))
+                            .foregroundStyle(Theme.inkSoft)
                     }
                 }
-                .font(.caption)
             }
+            .padding(.top, 4)
         }
+        .padding(.vertical, 2)
     }
 }

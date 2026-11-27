@@ -37,8 +37,13 @@ Chaque push lance le workflow [`iOS build`](.github/workflows/ios.yml) sur un ru
 2. compilation et **tests unitaires** sur un simulateur iPhone ;
 3. compilation pour iPhone d'une **IPA non signée**, téléchargeable dans l'onglet *Actions* › le run › *Artifacts*.
 
-L'IPA non signée peut être installée sur un iPhone après signature (Xcode, AltStore, Sideloadly…).
-Pour TestFlight / App Store, il faudra ajouter un compte Apple Developer et la signature dans le workflow.
+En parallèle, un job **Captures d'écran** lance l'app sur un simulateur avec des données de démonstration
+(argument `-demoData`), parcourt tous les écrans (test UI `BaluchonUITests`) et publie les captures dans l'artefact `screenshots`.
+
+Sur `main`, un dernier job **signe l'app et l'envoie sur TestFlight**, une fois les secrets Apple configurés :
+voir [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md). Sans ces secrets, l'étape est ignorée.
+
+L'IPA non signée peut aussi être installée sur un iPhone après signature (Xcode, AltStore, Sideloadly…).
 
 ### Sur un Mac
 
@@ -65,6 +70,7 @@ Baluchon/
 Shared/           Code commun app + extension de partage (boîte de dépôt App Group)
 ShareExtension/   Extension « Partager vers Baluchon »
 BaluchonTests/    Tests unitaires (analyse, planification, % de préparation, e-mails)
+BaluchonUITests/  Parcours de l'app et captures d'écran
 ```
 
 - **iOS 17+** (SwiftData), IA embarquée à partir d'iOS 26 sur les appareils compatibles.

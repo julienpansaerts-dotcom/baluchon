@@ -191,10 +191,10 @@ enum TripPlanner {
                 let slot: DaySlot
                 if place.category == .nightlife {
                     slot = .evening
-                } else if dayCursor == 0 || used >= pace.dailyHours / 2 {
-                    slot = .afternoon
-                } else {
+                } else if dayCursor > 0 && used < 0.01 {
                     slot = .morning
+                } else {
+                    slot = .afternoon
                 }
                 entries.append(PlannedEntry(dayIndex: firstDay + dayCursor, slot: slot, title: place.name, city: stop.city, place: place))
                 budgets[dayCursor] -= place.category.visitHours
@@ -212,7 +212,7 @@ enum TripPlanner {
         }
 
         let lastDay = max(totalDays - 1, day)
-        entries.append(PlannedEntry(dayIndex: lastDay, slot: .transit, title: "Départ — retour à la maison ✈️", city: stops.last?.city ?? ""))
+        entries.append(PlannedEntry(dayIndex: lastDay, slot: .transit, title: "Départ — retour à la maison", city: stops.last?.city ?? ""))
 
         return entries.sorted { ($0.dayIndex, $0.slot.sortIndex) < ($1.dayIndex, $1.slot.sortIndex) }
     }

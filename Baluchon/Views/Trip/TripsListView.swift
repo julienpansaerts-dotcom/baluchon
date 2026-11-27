@@ -1,34 +1,48 @@
 import SwiftData
 import SwiftUI
 
+/// Mes voyages : une pile de billets.
 struct TripsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Trip.createdAt, order: .reverse) private var trips: [Trip]
 
     var body: some View {
         NavigationStack {
-            Group {
-                if trips.isEmpty {
-                    ContentUnavailableView(
-                        "Aucun voyage pour l'instant",
-                        systemImage: "suitcase.rolling",
-                        description: Text("Ouvre une tuile dans « Inspirations », garde ce qui te plaît puis touche « Lancer le projet ».")
-                    )
-                } else {
-                    List {
-                        ForEach(trips) { trip in
-                            NavigationLink(value: trip) {
-                                TripRow(trip: trip)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionLabel("\(trips.count) billet\(trips.count > 1 ? "s" : "")")
+                        Text("Mes voyages")
+                            .font(.display(34, weight: .bold))
+                            .foregroundStyle(Theme.ink)
+                    }
+                    if trips.isEmpty {
+                        Text("Aucun voyage pour l'instant. Ouvre un timbre dans tes envies, garde ce qui te plaît, puis lance le projet.")
+                            .font(.display(17, weight: .regular))
+                            .foregroundStyle(Theme.inkSoft)
+                            .padding(.top, 8)
+                    }
+                    ForEach(Array(trips.enumerated()), id: \.element.id) { index, trip in
+                        NavigationLink(value: trip) {
+                            TripTicket(trip: trip)
+                        }
+                        .buttonStyle(StampPressStyle())
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                context.delete(trip)
+                                try? context.save()
+                            } label: {
+                                Label("Supprimer ce voyage", systemImage: "trash")
                             }
                         }
-                        .onDelete { offsets in
-                            for index in offsets { context.delete(trips[index]) }
-                            try? context.save()
-                        }
+                        .staggered(index)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
-            .navigationTitle("Mes voyages")
+            .background(PaperBackground())
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Trip.self) { trip in
                 TripDashboardView(trip: trip)
             }
@@ -36,27 +50,52 @@ struct TripsListView: View {
     }
 }
 
-private struct TripRow: View {
+/// Un voyage présenté comme un billet de train : talon à gauche, trajet à droite.
+private struct TripTicket: View {
     let trip: Trip
 
+    private var color: Color { DestinationStyle.color(for: trip.destinationKey) }
+
     var body: some View {
-        HStack(spacing: 14) {
-            ProgressRing(percent: trip.readiness.percent, lineWidth: 5, showsLabel: false)
-                .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(trip.name).font(.headline)
-                Group {
-                    if let start = trip.startDate {
-                        Text("Départ le \(start.shortFrench) · \(trip.totalDays) jours")
-                    } else {
-                        Text("\(trip.totalDays) jours · date à définir")
-                    }
-                }
-                .font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("\(trip.readiness.percent)")
+                    .font(.display(30, weight: .bold))
+                Text("% PRÊT").font(.ticket(9, weight: .bold))
             }
-            Spacer()
-            Text(verbatim: "\(trip.readiness.percent)%").font(.headline.monospacedDigit())
+            .foregroundStyle(Theme.card)
+            .frame(width: 92)
+            .frame(maxHeight: .infinity)
+            .background(color)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(DestinationStyle.code(for: trip.destinationKey))
+                        .font(.ticket(12, weight: .bold))
+                        .foregroundStyle(color)
+                    Spacer()
+                    Text(trip.startDate.map { "DÉPART \($0.ticketDate)" } ?? "DATE À FIXER")
+                        .font(.ticket(10, weight: .semibold))
+                        .foregroundStyle(Theme.inkSoft)
+                }
+                Text(trip.name)
+                    .font(.display(21, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text(trip.sortedStops.map(\.city).joined(separator: " — "))
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkSoft)
+                    .lineLimit(1)
+                Text("\(trip.totalDays) JOURS · \(trip.pace.label.uppercased())")
+                    .font(.ticket(10, weight: .semibold))
+                    .foregroundStyle(Theme.inkSoft)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4)
+        .frame(height: 124)
+        .background(Theme.card)
+        .clipShape(TicketShape(notchXPoints: 92, notchY: nil, notchRadius: 8, cornerRadius: 10), style: FillStyle(eoFill: true))
+        .shadow(color: .black.opacity(0.09), radius: 4, y: 2)
     }
 }

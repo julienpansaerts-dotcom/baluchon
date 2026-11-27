@@ -1,14 +1,14 @@
 import SwiftData
 import SwiftUI
 
-/// Écran principal : les inspirations classées automatiquement en tuiles par destination.
+/// Le carnet d'envies : chaque destination reconnue devient un timbre.
 struct InspirationsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Inspiration.createdAt, order: .reverse) private var inspirations: [Inspiration]
     @Query private var places: [PlaceItem]
     @State private var showingAdd = false
 
-    private struct Tile: Identifiable {
+    struct Tile: Identifiable {
         let key: String
         let destination: Destination?
         let sourceCount: Int
@@ -48,42 +48,55 @@ struct InspirationsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if inspirations.isEmpty {
-                    emptyState
-                } else {
-                    VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    if inspirations.isEmpty {
+                        emptyState
+                    } else {
                         if analyzingCount > 0 {
-                            Label("Analyse de \(analyzingCount) contenu(s) en cours…", systemImage: "sparkle.magnifyingglass")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Lecture de \(analyzingCount) contenu(s)…")
+                                    .font(.ticket(12))
+                                    .foregroundStyle(Theme.inkSoft)
+                            }
                         }
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                            ForEach(tiles) { tile in
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)], spacing: 22) {
+                            ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
                                 NavigationLink(value: tile.key) {
-                                    tileView(tile)
+                                    DestinationStamp(tile: tile)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(StampPressStyle())
+                                .accessibilityIdentifier("tile-\(tile.key)")
+                                .staggered(index)
                             }
                             if !unclassified.isEmpty {
                                 NavigationLink {
                                     UnclassifiedView()
                                 } label: {
-                                    unclassifiedTile
+                                    UnclassifiedStamp(count: unclassified.count)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(StampPressStyle())
+                                .staggered(tiles.count)
                             }
                         }
                     }
-                    .padding()
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
-            .navigationTitle("Mes envies")
+            .background(PaperBackground())
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: String.self) { key in
                 DestinationDetailView(destinationKey: key)
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { showingAdd = true } label: { Label("Ajouter", systemImage: "plus.circle.fill") }
+                    Button { showingAdd = true } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .accessibilityLabel("Ajouter une inspiration")
                 }
             }
             .sheet(isPresented: $showingAdd) {
@@ -95,74 +108,158 @@ struct InspirationsView: View {
         }
     }
 
-    private func tileView(_ tile: Tile) -> some View {
-        ZStack(alignment: .bottomLeading) {
-            DestinationStyle.gradient(for: tile.key)
-            if let cover = tile.cover {
-                DataImage(data: cover)
-                    .overlay(LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(tile.destination?.flag ?? "📍").font(.largeTitle)
-                Text(tile.destination?.name ?? tile.key)
-                    .font(.headline)
-                Text("\(tile.ideaCount) idée\(tile.ideaCount > 1 ? "s" : "") · \(tile.sourceCount) source\(tile.sourceCount > 1 ? "s" : "")")
-                    .font(.caption)
-                HStack(spacing: 4) {
-                    ForEach(tile.sources.prefix(5)) { source in
-                        Image(systemName: source.symbol)
-                    }
-                    Spacer()
-                    if tile.pendingCount > 0 {
-                        Text("\(tile.pendingCount) à trier")
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.white.opacity(0.25), in: Capsule())
-                    }
-                }
-                .font(.caption2)
-            }
-            .foregroundStyle(.white)
-            .padding(12)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionLabel("Carnet d'envies · \(inspirations.count) source\(inspirations.count > 1 ? "s" : "")")
+            Text("Où est-ce qu'on part ?")
+                .font(.display(34, weight: .bold))
+                .foregroundStyle(Theme.ink)
         }
-        .frame(height: 190)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-    }
-
-    private var unclassifiedTile: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "questionmark.folder").font(.largeTitle)
-            Text("À classer").font(.headline)
-            Text("\(unclassified.count) contenu(s)").font(.caption).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 190)
-        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(.top, 4)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "sparkles.rectangle.stack")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-            Text("Rassemble tes envies de voyage").font(.title2.bold())
-            Text("Partage vers **Baluchon** des posts Instagram ou Facebook, des vidéos TikTok ou YouTube Shorts, des épingles Pinterest, des lieux Google Maps, des articles de blog ou des captures d'écran. L'app les classe automatiquement par destination.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Dans l'app d'origine : bouton Partager › Baluchon", systemImage: "square.and.arrow.up")
-                Label("Ou ici : bouton + pour coller un lien ou choisir des photos", systemImage: "plus.circle")
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Ton carnet est vide. Glisses-y ce qui te fait envie : un post Instagram, une vidéo TikTok, une épingle Pinterest, un lieu Google Maps, un article de blog ou une capture d'écran.")
+                .font(.display(18, weight: .regular))
+                .foregroundStyle(Theme.ink)
+            VStack(alignment: .leading, spacing: 10) {
+                stepRow("1", "Dans l'app d'origine, touche Partager puis Baluchon.")
+                stepRow("2", "Baluchon lit le contenu et le range par destination.")
+                stepRow("3", "Tu gardes ce qui te plaît, puis tu lances le voyage.")
             }
-            .font(.callout)
             Button { showingAdd = true } label: {
-                Label("Ajouter une inspiration", systemImage: "plus")
-                    .frame(maxWidth: .infinity)
+                Text("Ajouter une première envie")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(TicketButtonStyle())
+            .padding(.top, 8)
         }
-        .padding(28)
+        .padding(.top, 10)
+    }
+
+    private func stepRow(_ number: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(number).font(.ticket(13, weight: .bold)).foregroundStyle(Theme.stamp)
+            Text(text).font(.callout).foregroundStyle(Theme.inkSoft)
+        }
+    }
+}
+
+/// Un timbre de destination : bord perforé, encre du pays, code à trois lettres.
+struct DestinationStamp: View {
+    let tile: InspirationsView.Tile
+
+    private var color: Color { DestinationStyle.color(for: tile.key) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                color
+                if let cover = tile.cover {
+                    DataImage(data: cover)
+                        .saturation(0.35)
+                        .overlay(color.opacity(0.55))
+                        .clipped()
+                }
+                PostmarkLines()
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1.2)
+                    .frame(width: 46, height: 26)
+                    .padding(.top, 50)
+                    .padding(.trailing, 10)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(DestinationStyle.code(for: tile.key))
+                        .font(.ticket(30, weight: .bold))
+                        .tracking(2)
+                    Spacer(minLength: 0)
+                    Text(tile.destination?.name ?? tile.key)
+                        .font(.display(19, weight: .semibold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
+                .foregroundStyle(.white)
+                .padding(12)
+            }
+            .frame(height: 128)
+            .clipShape(Rectangle())
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(tile.ideaCount) idée\(tile.ideaCount > 1 ? "s" : "")")
+                    .font(.ticket(11, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                Spacer()
+                if tile.pendingCount > 0 {
+                    Text("\(tile.pendingCount) à trier")
+                        .font(.ticket(10, weight: .bold))
+                        .foregroundStyle(Theme.stamp)
+                } else {
+                    Text("\(tile.keptCount) gardée\(tile.keptCount > 1 ? "s" : "")")
+                        .font(.ticket(10, weight: .medium))
+                        .foregroundStyle(Theme.inkSoft)
+                }
+            }
+            .padding(.horizontal, 2)
+            .padding(.top, 9)
+        }
+        .padding(9)
+        .background(PerforatedRectangle().punched(Theme.card))
+        .compositingGroup()
+        .shadow(color: Color.black.opacity(0.10), radius: 3, x: 0, y: 2)
+        .rotationEffect(.degrees(DestinationStyle.tilt(for: tile.key)))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Lignes ondulées d'oblitération postale.
+struct PostmarkLines: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let lines = 4
+        for i in 0..<lines {
+            let y = rect.minY + rect.height * CGFloat(i) / CGFloat(lines - 1)
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            var x = rect.minX
+            let wave: CGFloat = 12
+            while x < rect.maxX {
+                path.addQuadCurve(to: CGPoint(x: x + wave, y: y),
+                                  control: CGPoint(x: x + wave / 2, y: y + (Int(x / wave) % 2 == 0 ? -3 : 3)))
+                x += wave
+            }
+        }
+        return path
+    }
+}
+
+struct UnclassifiedStamp: View {
+    let count: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("???")
+                .font(.ticket(30, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(Theme.inkSoft.opacity(0.7))
+            Spacer(minLength: 0)
+            Text("À classer")
+                .font(.display(19, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+            Text("\(count) contenu(s) sans destination")
+                .font(.ticket(10))
+                .foregroundStyle(Theme.inkSoft)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 172, alignment: .topLeading)
+        .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Theme.inkSoft.opacity(0.5), style: StrokeStyle(lineWidth: 1.3, dash: [5, 4])))
+        .rotationEffect(.degrees(1.2))
+    }
+}
+
+/// Appui : le timbre se soulève légèrement.
+struct StampPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -178,33 +275,37 @@ struct UnclassifiedView: View {
                 ForEach(items) { item in
                     HStack(spacing: 12) {
                         DataImage(data: item.imageData, placeholder: item.source.symbol)
-                            .frame(width: 56, height: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        VStack(alignment: .leading) {
-                            Text(item.title.isEmpty ? item.source.label : item.title).lineLimit(2)
-                            Label(item.source.label, systemImage: item.source.symbol)
-                                .font(.caption).foregroundStyle(.secondary)
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.title.isEmpty ? item.source.label : item.title)
+                                .font(.display(16)).foregroundStyle(Theme.ink).lineLimit(2)
+                            Text(item.source.label.uppercased())
+                                .font(.ticket(10, weight: .semibold)).foregroundStyle(Theme.inkSoft)
                         }
                         Spacer()
                         Menu {
                             ForEach(DestinationCatalog.all) { destination in
-                                Button("\(destination.flag) \(destination.name)") {
+                                Button("\(destination.name) · \(DestinationStyle.code(for: destination.key))") {
                                     Task { await InspirationPipeline.assign(item, to: destination, context: context) }
                                 }
                             }
                         } label: {
-                            Text("Classer").font(.callout.weight(.semibold))
+                            Text("CLASSER")
                         }
+                        .buttonStyle(InkButtonStyle(color: Theme.stamp))
                     }
+                    .cardRow()
                 }
                 .onDelete { offsets in
                     for index in offsets { context.delete(items[index]) }
                     try? context.save()
                 }
             } footer: {
-                Text("La destination n'a pas pu être reconnue automatiquement. Choisis-la pour ranger ce contenu.")
+                Text("La destination n'a pas été reconnue. Choisis-la pour ranger ce contenu dans le bon timbre.")
             }
         }
+        .paperBackground()
         .navigationTitle("À classer")
     }
 }

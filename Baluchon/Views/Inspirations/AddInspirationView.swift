@@ -20,38 +20,45 @@ struct AddInspirationView: View {
             Form {
                 Section {
                     TextField("https://www.instagram.com/p/…", text: $link)
+                        .font(.ticket(14))
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .cardRow()
                     if let source = detectedSource, !link.isEmpty {
-                        Label("Source détectée : \(source.label)", systemImage: source.symbol)
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text("SOURCE : \(source.label.uppercased())")
+                            .font(.ticket(10, weight: .bold)).foregroundStyle(Theme.sea)
+                            .cardRow()
                     }
-                    Button {
+                    Button("COLLER LE LIEN") {
                         if let pasted = UIPasteboard.general.string { link = pasted }
-                    } label: {
-                        Label("Coller depuis le presse-papiers", systemImage: "doc.on.clipboard")
                     }
+                    .buttonStyle(InkButtonStyle(color: Theme.stamp))
+                    .listRowBackground(Color.clear)
                 } header: {
-                    Text("Lien")
+                    SectionLabel("Lien")
                 } footer: {
                     Text("Instagram, Facebook, TikTok, YouTube Shorts, Pinterest, Google Maps, blog…")
                 }
 
-                Section("Texte ou légende (facultatif)") {
-                    TextEditor(text: $text).frame(minHeight: 90)
+                Section {
+                    TextEditor(text: $text).frame(minHeight: 90).cardRow()
+                } header: {
+                    SectionLabel("Texte ou légende (facultatif)")
                 }
 
                 Section {
                     PhotosPicker(selection: $photoItems, maxSelectionCount: 20, matching: .images) {
-                        Label(photoItems.isEmpty ? "Choisir des photos ou captures d'écran" : "\(photoItems.count) image(s) sélectionnée(s)",
-                              systemImage: "photo.on.rectangle.angled")
+                        Text(photoItems.isEmpty ? "Choisir des photos ou captures d'écran" : "\(photoItems.count) image(s) sélectionnée(s)")
+                            .font(.display(16))
                     }
+                    .cardRow()
                 } footer: {
                     Text("Le texte des captures est lu directement sur ton iPhone (OCR), rien n'est envoyé.")
                 }
             }
-            .navigationTitle("Nouvelle inspiration")
+            .paperBackground()
+            .navigationTitle("Nouvelle envie")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -61,7 +68,7 @@ struct AddInspirationView: View {
                     if isWorking {
                         ProgressView()
                     } else {
-                        Button("Analyser") { Task { await submit() } }
+                        Button("Glisser dans le carnet") { Task { await submit() } }
                             .disabled(!canSubmit)
                     }
                 }
