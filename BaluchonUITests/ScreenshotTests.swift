@@ -63,11 +63,10 @@ final class ScreenshotTests: XCTestCase {
         snapshot("13-avant-le-depart")
         app.buttons["activate-travel-mode"].tap()
         if app.staticTexts["DÉPARTS"].waitForExistence(timeout: 15) {
-            pause(1.0)
             snapshot("14-bon-voyage")
         }
         XCTAssertTrue(app.tabBars.buttons["Phrases"].waitForExistence(timeout: 15))
-        pause(3.5)
+        pause(9)
         snapshot("15-mode-voyage-aujourdhui")
 
         for (tab, name) in [("Phrases", "16-phrases"), ("Argent", "17-convertisseur"),

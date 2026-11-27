@@ -30,7 +30,9 @@ struct TravelModeView: View {
             }
         }
         .task {
-            try? await Task.sleep(nanoseconds: 3_200_000_000)
+            // Plus long en démo pour que les captures automatiques puissent la saisir.
+            let seconds: UInt64 = DemoData.isEnabled ? 9 : 3
+            try? await Task.sleep(nanoseconds: seconds * 1_000_000_000 + 200_000_000)
             withAnimation(.easeOut(duration: 0.6)) { showIntro = false }
         }
         .confirmationDialog("Quitter le mode voyage ?", isPresented: $confirmExit, titleVisibility: .visible) {
