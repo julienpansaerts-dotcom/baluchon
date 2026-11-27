@@ -191,10 +191,10 @@ enum TripPlanner {
                 let slot: DaySlot
                 if place.category == .nightlife {
                     slot = .evening
-                } else if dayCursor == 0 || used >= pace.dailyHours / 2 {
-                    slot = .afternoon
-                } else {
+                } else if dayCursor > 0 && used < 0.01 {
                     slot = .morning
+                } else {
+                    slot = .afternoon
                 }
                 entries.append(PlannedEntry(dayIndex: firstDay + dayCursor, slot: slot, title: place.name, city: stop.city, place: place))
                 budgets[dayCursor] -= place.category.visitHours

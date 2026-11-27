@@ -77,6 +77,9 @@ struct TodayView: View {
 
             if let day = days.first(where: { $0.index == selectedDay }) {
                 Section(ItineraryDays.title(for: day.index, trip: trip)) {
+                    if day.entries.isEmpty {
+                        FreeDayRow()
+                    }
                     ForEach(day.entries) { entry in
                         ItineraryEntryRow(entry: entry)
                     }

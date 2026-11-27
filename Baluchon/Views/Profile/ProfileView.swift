@@ -15,8 +15,7 @@ struct ProfileView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Nom (pour les réservations)", text: $name)
-                        .textContentType(.name)
+                    LabeledField(label: "Nom", placeholder: "Pour les réservations", text: $name)
                     Picker("Nationalité", selection: $nationality) {
                         ForEach(OfficialSources.nationalities, id: \.code) { Text($0.label).tag($0.code) }
                     }
@@ -30,10 +29,10 @@ struct ProfileView: View {
                 }
 
                 Section {
-                    TextField("Groupe sanguin", text: $bloodType)
-                    TextField("Allergies", text: $allergies)
-                    TextField("Assurance (nom + n° d'assistance)", text: $insurance)
-                    TextField("Personne à prévenir (nom + téléphone)", text: $emergencyContact)
+                    LabeledField(label: "Groupe sanguin", placeholder: "Ex. : A+", text: $bloodType)
+                    LabeledField(label: "Allergies", placeholder: "Ex. : arachides", text: $allergies)
+                    LabeledField(label: "Assurance", placeholder: "Nom + n° d'assistance", text: $insurance, vertical: true)
+                    LabeledField(label: "Personne à prévenir", placeholder: "Nom + téléphone", text: $emergencyContact, vertical: true)
                 } header: {
                     Text("Urgences — disponibles hors ligne")
                 } footer: {
@@ -56,6 +55,31 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profil")
+        }
+    }
+}
+
+/// Champ de formulaire avec son intitulé toujours visible.
+private struct LabeledField: View {
+    let label: String
+    let placeholder: String
+    @Binding var text: String
+    var vertical = false
+
+    var body: some View {
+        if vertical {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label).font(.caption).foregroundStyle(.secondary)
+                TextField(placeholder, text: $text)
+            }
+        } else {
+            HStack {
+                Text(label)
+                Spacer(minLength: 16)
+                TextField(placeholder, text: $text)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

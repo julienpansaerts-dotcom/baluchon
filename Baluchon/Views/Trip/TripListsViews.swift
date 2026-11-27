@@ -77,6 +77,9 @@ struct ItineraryView: View {
         List {
             ForEach(ItineraryDays.days(for: trip), id: \.index) { day in
                 Section {
+                    if day.entries.isEmpty {
+                        FreeDayRow()
+                    }
                     ForEach(day.entries) { entry in
                         ItineraryEntryRow(entry: entry)
                     }
@@ -97,7 +100,9 @@ enum ItineraryDays {
 
     static func days(for trip: Trip) -> [Day] {
         let grouped = Dictionary(grouping: trip.itinerary, by: \.dayIndex)
-        return grouped.keys.sorted().map { index in
+        // Tous les jours du voyage, y compris les journées libres (marge) sans activité prévue.
+        let count = max(trip.totalDays, (grouped.keys.max() ?? -1) + 1)
+        return (0..<count).map { index in
             Day(index: index, entries: (grouped[index] ?? []).sorted {
                 ($0.slot.sortIndex, $0.order) < ($1.slot.sortIndex, $1.order)
             })
@@ -113,6 +118,22 @@ enum ItineraryDays {
 
     static func date(for index: Int, trip: Trip) -> Date? {
         trip.startDate.flatMap { Calendar.current.date(byAdding: .day, value: index, to: $0) }
+    }
+}
+
+/// Journée sans activité prévue : la marge du rythme choisi.
+struct FreeDayRow: View {
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Journée libre").font(.body.weight(.semibold))
+                Text("Repos, flânerie, ou rattrapage si la météo a joué des tours.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: "leaf").foregroundStyle(.green)
+        }
+        .padding(.vertical, 2)
     }
 }
 

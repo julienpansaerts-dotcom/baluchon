@@ -64,6 +64,14 @@ final class TripPlannerTests: XCTestCase {
         XCTAssertTrue(plan.entries.allSatisfy { $0.dayIndex < plan.totalDays })
     }
 
+    func testAtMostOneMorningActivityPerDay() {
+        for pace in Pace.allCases {
+            let plan = TripPlanner.plan(places: vietnamPlaces, destination: vietnam, pace: pace)
+            let mornings = Dictionary(grouping: plan.entries.filter { $0.slot == .morning }, by: \.dayIndex)
+            XCTAssertTrue(mornings.values.allSatisfy { $0.count == 1 }, pace.rawValue)
+        }
+    }
+
     func testPlanWithoutCatalogDestination() {
         let places = [PlannerPlace(name: "Musée local", category: .sight, city: nil)]
         let plan = TripPlanner.plan(places: places, destination: nil, pace: .balanced)

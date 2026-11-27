@@ -32,7 +32,7 @@ struct TripDashboardView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Préparation").font(.headline)
                         if let days = daysUntilDeparture {
-                            Text(days >= 0 ? "J-\(days)" : "Voyage en cours ou passé")
+                            Text(days > 0 ? "J-\(days)" : days == 0 ? "C'est le jour J ✈️" : "Voyage en cours")
                                 .font(.title.bold())
                         }
                         if readiness.blockers > 0 {
