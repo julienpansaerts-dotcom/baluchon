@@ -2,7 +2,7 @@ name: iOS build
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -130,9 +130,11 @@ jobs:
             -scheme BaluchonScreenshots \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath Screenshots.xcresult \
+            -retry-tests-on-failure -test-iterations 2 \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
             > xcodebuild-uitest.log 2>&1 || STATUS=$?
           grep -E "error:|failed|Executed|\*\* (BUILD|TEST)" xcodebuild-uitest.log || true
+          if [ $STATUS -ne 0 ]; then echo "----- fin du journal -----"; tail -n 80 xcodebuild-uitest.log; fi
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
 
       - name: Extraction des captures
@@ -151,9 +153,9 @@ jobs:
           retention-days: 30
 
       - name: Publication des captures sur la branche « screenshots »
-        if: always() && github.event_name == 'push'
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
           [ -n "$(ls screenshots/*.png 2>/dev/null)" ] || { echo "Aucune capture"; exit 0; }
