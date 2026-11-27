@@ -4,6 +4,7 @@ en utilisant le nom donné dans le test (ex. « 01-inspirations.png »).
 Usage : python3 extract_screenshots.py <dossier_export> <dossier_sortie>
 """
 import json
+import re
 import pathlib
 import shutil
 import sys
@@ -31,6 +32,10 @@ for attachment in walk(manifest):
     source = export_dir / attachment["exportedFileName"]
     human = attachment.get("suggestedHumanReadableName") or attachment["exportedFileName"]
     name = human.split("_")[0]
+    # On ne garde que les captures nommées par le test (« 01-… »), pas les pièces jointes
+    # automatiques de Xcode (instantanés d'interface, vidéos, événements synthétisés).
+    if not re.match(r"^\d{2}-", name):
+        continue
     if not name.lower().endswith(".png"):
         name += ".png"
     if source.exists():

@@ -140,8 +140,13 @@ struct DestinationDetailView: View {
             .disabled(kept.isEmpty)
             .accessibilityIdentifier("launch-project")
             .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.top, 22)
             .padding(.bottom, 6)
+            .background(
+                LinearGradient(colors: [Theme.paper.opacity(0), Theme.paper, Theme.paper],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+            )
         }
         .sheet(isPresented: $showingLaunch) {
             LaunchTripView(destinationKey: destinationKey, places: kept) { trip in

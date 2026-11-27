@@ -162,9 +162,11 @@ struct DestinationStamp: View {
                         .clipped()
                 }
                 PostmarkLines()
-                    .stroke(Color.white.opacity(0.28), lineWidth: 1.2)
-                    .frame(width: 70, height: 34)
-                    .offset(x: 70, y: 12)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1.2)
+                    .frame(width: 46, height: 26)
+                    .padding(.top, 50)
+                    .padding(.trailing, 10)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(DestinationStyle.code(for: tile.key))
                         .font(.ticket(30, weight: .bold))

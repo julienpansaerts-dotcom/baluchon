@@ -30,8 +30,8 @@ struct TravelModeView: View {
             }
         }
         .task {
-            try? await Task.sleep(nanoseconds: 2_300_000_000)
-            withAnimation(.easeOut(duration: 0.5)) { showIntro = false }
+            try? await Task.sleep(nanoseconds: 3_200_000_000)
+            withAnimation(.easeOut(duration: 0.6)) { showIntro = false }
         }
         .confirmationDialog("Quitter le mode voyage ?", isPresented: $confirmExit, titleVisibility: .visible) {
             Button("Revenir au carnet de préparation") { trip.isTravelModeActive = false }
