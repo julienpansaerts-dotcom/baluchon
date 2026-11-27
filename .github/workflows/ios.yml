@@ -1,0 +1,90 @@
+name: iOS build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Compilation + tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sélection de la version de Xcode la plus récente
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -n 1)
+          echo "Xcode choisi : $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Installation de XcodeGen
+        run: brew install xcodegen
+
+      - name: Génération du projet Xcode
+        run: xcodegen generate
+
+      - name: Choix d'un simulateur iPhone
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 scripts/pick_simulator.py)
+          echo "Simulateur : $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Compilation et tests unitaires (simulateur)
+        run: |
+          STATUS=0
+          xcodebuild test \
+            -project Baluchon.xcodeproj \
+            -scheme Baluchon \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            > xcodebuild-test.log 2>&1 || STATUS=$?
+          grep -E "error:|Test Case.*(passed|failed)|Executed|\*\* (BUILD|TEST)" xcodebuild-test.log || true
+          exit $STATUS
+
+      - name: Compilation iPhone (IPA non signée)
+        run: |
+          STATUS=0
+          xcodebuild archive \
+            -project Baluchon.xcodeproj \
+            -scheme Baluchon \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/Baluchon.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            > xcodebuild-archive.log 2>&1 || STATUS=$?
+          grep -E "error:|\*\* ARCHIVE" xcodebuild-archive.log || true
+          exit $STATUS
+
+      - name: Empaquetage de l'IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/Baluchon.xcarchive/Products/Applications/Baluchon.app build/Payload/
+          (cd build && zip -qr Baluchon-unsigned.ipa Payload)
+          ls -lh build/Baluchon-unsigned.ipa
+
+      - name: Publication de l'IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Baluchon-unsigned-ipa
+          path: build/Baluchon-unsigned.ipa
+          retention-days: 14
+
+      - name: Publication des journaux (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            xcodebuild-*.log
+            TestResults.xcresult
+          retention-days: 7

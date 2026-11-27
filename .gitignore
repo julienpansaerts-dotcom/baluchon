@@ -1,0 +1,18 @@
+# Généré par XcodeGen (voir project.yml)
+*.xcodeproj
+Baluchon/Info.plist
+Baluchon/Baluchon.entitlements
+ShareExtension/Info.plist
+ShareExtension/BaluchonShare.entitlements
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
