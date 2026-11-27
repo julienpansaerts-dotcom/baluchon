@@ -88,3 +88,188 @@ jobs:
             xcodebuild-*.log
             TestResults.xcresult
           retention-days: 7
+
+  screenshots:
+    name: Captures d'écran (simulateur)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sélection de la version de Xcode la plus récente
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -n 1)
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Installation de XcodeGen
+        run: brew install xcodegen
+
+      - name: Génération du projet Xcode
+        run: xcodegen generate
+
+      - name: Démarrage du simulateur (barre d'état propre)
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 scripts/pick_simulator.py)
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 \
+            --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi || true
+          xcrun simctl list devices | grep "$UDID"
+
+      - name: Parcours de l'app et captures
+        id: uitest
+        run: |
+          STATUS=0
+          xcodebuild test \
+            -project Baluchon.xcodeproj \
+            -scheme BaluchonScreenshots \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath Screenshots.xcresult \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            > xcodebuild-uitest.log 2>&1 || STATUS=$?
+          grep -E "error:|failed|Executed|\*\* (BUILD|TEST)" xcodebuild-uitest.log || true
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Extraction des captures
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path Screenshots.xcresult --output-path exported
+          python3 scripts/extract_screenshots.py exported screenshots
+          ls screenshots
+
+      - name: Publication des captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/*.png
+          retention-days: 30
+
+      - name: Publication des journaux (en cas d'échec)
+        if: failure() || steps.uitest.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: uitest-logs
+          path: xcodebuild-uitest.log
+          retention-days: 7
+
+      - name: Résultat des tests UI
+        run: exit ${{ steps.uitest.outputs.status }}
+
+  testflight:
+    name: Envoi sur TestFlight
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    steps:
+      - name: Vérification de la configuration
+        id: check
+        run: |
+          if [ -z "$APPLE_TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
+            echo "::notice title=TestFlight non configuré::Ajoute les secrets APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID et ASC_PRIVATE_KEY (voir docs/TESTFLIGHT.md). Envoi ignoré."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+
+      - name: Préparation (Xcode, XcodeGen, clé API)
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -n 1)
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen generate
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
+          echo "KEY_PATH=$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))" >> "$GITHUB_ENV"
+
+      - name: Archive signée (signature automatique)
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          STATUS=0
+          xcodebuild archive \
+            -project Baluchon.xcodeproj \
+            -scheme Baluchon \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/Baluchon.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            > xcodebuild-archive.log 2>&1 || STATUS=$?
+          grep -E "error:|\*\* ARCHIVE" xcodebuild-archive.log || true
+          [ $STATUS -eq 0 ] || tail -n 40 xcodebuild-archive.log
+          exit $STATUS
+
+      - name: Export pour l'App Store
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          STATUS=0
+          xcodebuild -exportArchive \
+            -archivePath build/Baluchon.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            > xcodebuild-export.log 2>&1 || STATUS=$?
+          grep -E "error:|\*\* EXPORT" xcodebuild-export.log || true
+          [ $STATUS -eq 0 ] || tail -n 40 xcodebuild-export.log
+          ls -lh build/export || true
+          exit $STATUS
+
+      - name: Envoi sur App Store Connect (TestFlight)
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          xcrun altool --upload-app --type ios \
+            --file build/export/Baluchon.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+          echo "::notice title=TestFlight::Build $BUILD_NUMBER envoyé. Il apparaîtra dans TestFlight après le traitement par Apple (10 à 30 min)."
+
+      - name: Nettoyage de la clé
+        if: always()
+        run: rm -rf "$HOME/.appstoreconnect"
+
+      - name: Publication des journaux (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-logs
+          path: xcodebuild-*.log
+          retention-days: 7

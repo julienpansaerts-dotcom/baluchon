@@ -36,6 +36,7 @@ targets:
         NSPhotoLibraryUsageDescription: "Baluchon analyse les photos et captures d'écran que tu choisis pour trouver des idées de voyage."
         LSApplicationQueriesSchemes:
           - comgooglemaps
+        ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: Baluchon/Baluchon.entitlements
       properties:
@@ -89,6 +90,18 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.baluchon.ios.tests
 
+  BaluchonUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: BaluchonUITests
+    dependencies:
+      - target: Baluchon
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.baluchon.ios.uitests
+
 schemes:
   Baluchon:
     build:
@@ -98,4 +111,14 @@ schemes:
     test:
       targets:
         - BaluchonTests
+      gatherCoverageData: false
+
+  BaluchonScreenshots:
+    build:
+      targets:
+        Baluchon: all
+        BaluchonUITests: [test]
+    test:
+      targets:
+        - BaluchonUITests
       gatherCoverageData: false

@@ -3,11 +3,11 @@ import SwiftUI
 
 @main
 struct BaluchonApp: App {
-    var body: some Scene {
-        WindowGroup {
-            RootView()
-        }
-        .modelContainer(for: [
+    private let container: ModelContainer
+
+    init() {
+        let isDemo = DemoData.isEnabled
+        let schema = Schema([
             Inspiration.self,
             PlaceItem.self,
             Trip.self,
@@ -17,6 +17,22 @@ struct BaluchonApp: App {
             TripStop.self,
             ItineraryEntry.self,
         ])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: isDemo)
+        do {
+            container = try ModelContainer(for: schema, configurations: [configuration])
+        } catch {
+            fatalError("Impossible d'ouvrir la base de données : \(error)")
+        }
+        if isDemo {
+            DemoData.seed(into: container.mainContext)
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+        }
+        .modelContainer(container)
     }
 }
 

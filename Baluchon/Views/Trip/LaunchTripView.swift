@@ -88,6 +88,7 @@ struct LaunchTripView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lancer 🚀") { launch() }.bold()
+                        .accessibilityIdentifier("confirm-launch")
                 }
             }
         }

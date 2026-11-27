@@ -63,6 +63,7 @@ struct InspirationsView: View {
                                     tileView(tile)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("tile-\(tile.key)")
                             }
                             if !unclassified.isEmpty {
                                 NavigationLink {

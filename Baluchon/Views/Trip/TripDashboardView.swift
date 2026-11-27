@@ -98,6 +98,7 @@ struct TripDashboardView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityIdentifier("travel-mode-button")
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             } footer: {

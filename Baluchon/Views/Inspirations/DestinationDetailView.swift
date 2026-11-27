@@ -113,6 +113,7 @@ struct DestinationDetailView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(kept.isEmpty)
+            .accessibilityIdentifier("launch-project")
             .padding()
             .background(.bar)
         }
