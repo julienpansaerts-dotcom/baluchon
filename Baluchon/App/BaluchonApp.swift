@@ -6,6 +6,7 @@ struct BaluchonApp: App {
     private let container: ModelContainer
 
     init() {
+        Theme.configureAppearance()
         let isDemo = DemoData.isEnabled
         let schema = Schema([
             Inspiration.self,
@@ -31,6 +32,7 @@ struct BaluchonApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(Theme.stamp)
         }
         .modelContainer(container)
     }
@@ -63,11 +65,11 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             InspirationsView()
-                .tabItem { Label("Inspirations", systemImage: "sparkles") }
+                .tabItem { Label("Envies", systemImage: "mappin.and.ellipse") }
             TripsListView()
-                .tabItem { Label("Voyages", systemImage: "suitcase.rolling") }
+                .tabItem { Label("Voyages", systemImage: "suitcase") }
             ProfileView()
-                .tabItem { Label("Profil", systemImage: "person.crop.circle") }
+                .tabItem { Label("Passeport", systemImage: "person.text.rectangle") }
         }
     }
 }

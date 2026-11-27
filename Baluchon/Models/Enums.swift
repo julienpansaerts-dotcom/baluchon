@@ -65,17 +65,17 @@ enum Pace: String, CaseIterable, Codable, Identifiable {
 
     var label: String {
         switch self {
-        case .chill: "Chill 🌴"
-        case .balanced: "Équilibré"
-        case .rushed: "Pressé ⚡️"
+        case .chill: "Flâneur"
+        case .balanced: "Curieux"
+        case .rushed: "Marathonien"
         }
     }
 
     var explanation: String {
         switch self {
-        case .chill: "2 à 3 activités par jour, des journées libres et une vraie marge."
-        case .balanced: "Un bon rythme, avec un peu de marge pour l'imprévu."
-        case .rushed: "Un maximum de choses, des journées bien remplies."
+        case .chill: "Deux ou trois choses par jour, des après-midi en terrasse et de vraies journées libres."
+        case .balanced: "Un rythme soutenu sans courir, avec un peu de marge pour l'imprévu."
+        case .rushed: "Réveil tôt, journées pleines : un maximum de choses en un minimum de jours."
         }
     }
 

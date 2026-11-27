@@ -212,7 +212,7 @@ enum TripPlanner {
         }
 
         let lastDay = max(totalDays - 1, day)
-        entries.append(PlannedEntry(dayIndex: lastDay, slot: .transit, title: "Départ — retour à la maison ✈️", city: stops.last?.city ?? ""))
+        entries.append(PlannedEntry(dayIndex: lastDay, slot: .transit, title: "Départ — retour à la maison", city: stops.last?.city ?? ""))
 
         return entries.sorted { ($0.dayIndex, $0.slot.sortIndex) < ($1.dayIndex, $1.slot.sortIndex) }
     }

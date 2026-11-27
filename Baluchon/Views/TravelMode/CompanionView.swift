@@ -56,50 +56,65 @@ private struct AICompanionView: View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 10) {
+                    LazyVStack(alignment: .leading, spacing: 12) {
                         if chat.messages.isEmpty {
-                            Text("Pose-moi une question sur ton voyage : « Qu'est-ce qu'on fait demain ? », « Comment dire merci ? », « Combien de pourboire laisser ? »… Je fonctionne sans réseau.")
-                                .foregroundStyle(.secondary)
-                                .padding()
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Demande-moi ce que tu veux sur ton voyage.")
+                                    .font(.display(20, weight: .semibold)).foregroundStyle(.white)
+                                ForEach(["Qu'est-ce qu'on fait demain ?", "Comment dire merci ?", "Faut-il laisser un pourboire ?"], id: \.self) { idea in
+                                    Button(idea) { Task { await chat.send(idea) } }
+                                        .buttonStyle(InkButtonStyle(color: Theme.amber))
+                                }
+                                Text("Je fonctionne sans réseau, directement sur ton iPhone.")
+                                    .font(.ticket(10)).foregroundStyle(.white.opacity(0.5))
+                            }
+                            .padding(.vertical, 8)
                         }
                         ForEach(chat.messages) { message in
                             HStack {
-                                if message.fromUser { Spacer(minLength: 40) }
+                                if message.fromUser { Spacer(minLength: 48) }
                                 Text(message.text)
+                                    .font(message.fromUser ? Font.body : Font.display(17))
                                     .padding(12)
-                                    .background(message.fromUser ? Color.orange.opacity(0.85) : Color.secondary.opacity(0.15),
-                                                in: RoundedRectangle(cornerRadius: 16))
-                                    .foregroundStyle(message.fromUser ? Color.white : Color.primary)
-                                if !message.fromUser { Spacer(minLength: 40) }
+                                    .background(RoundedRectangle(cornerRadius: 6)
+                                        .fill(message.fromUser ? Theme.amber : Theme.boardTile))
+                                    .foregroundStyle(message.fromUser ? Theme.board : Color.white)
+                                if !message.fromUser { Spacer(minLength: 48) }
                             }
                             .id(message.id)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                         if chat.isThinking {
-                            ProgressView().padding(.horizontal)
+                            SplitFlapText(text: "...", size: 16).padding(.horizontal, 4)
                         }
                     }
                     .padding()
+                    .animation(.snappy, value: chat.messages)
                 }
                 .onChange(of: chat.messages) { _, messages in
                     if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
             }
-            HStack {
+            HStack(spacing: 10) {
                 TextField("Ta question…", text: $input, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.boardTile))
                 Button {
                     let text = input
                     input = ""
                     Task { await chat.send(text) }
                 } label: {
-                    Image(systemName: "arrow.up.circle.fill").font(.title)
+                    Image(systemName: "arrow.up").font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Theme.board)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Theme.amber))
                 }
                 .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || chat.isThinking)
             }
             .padding()
-            .background(.bar)
         }
+        .background(Theme.board.ignoresSafeArea())
     }
 }
 #endif
@@ -111,27 +126,52 @@ private struct OfflineTipsView: View {
     var body: some View {
         List {
             Section {
-                Text("Le compagnon conversationnel utilise l'IA d'Apple directement sur l'iPhone (iOS 26 et appareil compatible Apple Intelligence). En attendant, voici tes fiches pratiques.")
-                    .font(.callout).foregroundStyle(.secondary)
+                Text("Le compagnon qui répond à tes questions utilise l'IA d'Apple directement sur l'iPhone (iOS 26 et appareil compatible Apple Intelligence). En attendant, voici tes fiches pratiques.")
+                    .font(.callout).foregroundStyle(.white.opacity(0.75))
+                    .listRowBackground(Color.clear)
             }
             if let destination = trip.destination {
-                Section("Sur place") {
-                    LabeledContent("Monnaie", value: destination.currencyCode)
-                    LabeledContent("Langue", value: destination.languageName)
-                    LabeledContent("Prises électriques", value: destination.plugTypes)
+                Section {
+                    fact("Monnaie", destination.currencyCode)
+                    fact("Langue", destination.languageName)
+                    fact("Prises électriques", destination.plugTypes)
+                } header: {
+                    SectionLabel("Sur place", color: Theme.amber.opacity(0.8))
                 }
             }
-            Section("Étapes") {
+            Section {
                 ForEach(trip.sortedStops) { stop in
-                    LabeledContent(stop.city, value: "\(stop.nights) nuit\(stop.nights > 1 ? "s" : "")")
+                    fact(stop.city, "\(stop.nights) N")
                 }
+            } header: {
+                SectionLabel("Étapes", color: Theme.amber.opacity(0.8))
             }
-            Section("Réflexes") {
-                Label("Garde une copie de ton passeport séparée de l'original", systemImage: "doc.on.doc")
-                Label("Retire de l'argent dans les distributeurs des banques, en journée", systemImage: "banknote")
-                Label("Les cartes hors ligne fonctionnent sans réseau : pense à les télécharger", systemImage: "map")
-                Label("En cas de pépin, l'onglet Urgences contient tous les numéros utiles", systemImage: "cross.case")
+            Section {
+                tip("Garde une copie de ton passeport séparée de l'original.")
+                tip("Retire de l'argent aux distributeurs des banques, en journée.")
+                tip("Les cartes téléchargées fonctionnent sans réseau.")
+                tip("En cas de pépin, l'onglet Urgences contient tous les numéros utiles.")
+            } header: {
+                SectionLabel("Réflexes", color: Theme.amber.opacity(0.8))
             }
         }
+        .boardBackground()
+    }
+
+    private func fact(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).font(.display(16)).foregroundStyle(.white)
+            Spacer()
+            Text(value).font(.ticket(13, weight: .bold)).foregroundStyle(Theme.amber).multilineTextAlignment(.trailing)
+        }
+        .boardRow()
+    }
+
+    private func tip(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("—").font(.ticket(14, weight: .bold)).foregroundStyle(Theme.amber)
+            Text(text).font(.callout).foregroundStyle(.white.opacity(0.9))
+        }
+        .boardRow()
     }
 }

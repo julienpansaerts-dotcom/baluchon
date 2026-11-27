@@ -28,6 +28,7 @@ struct TravelModeSetupView: View {
                                   detail: rateDetail)
                             if isFetchingRate { ProgressView() }
                         }
+                        .cardRow()
                     }
                     if let language = destination?.languageName, destination?.languageCode != nil {
                         check("Voix \(language) pour les phrases", ok: voiceReady,
@@ -36,28 +37,32 @@ struct TravelModeSetupView: View {
                     check("Cartes hors ligne", ok: trip.tasks.first(where: { $0.key == "offlineMaps" })?.isDone ?? false,
                           detail: "À télécharger dans Google Maps ou Plans, puis à cocher dans le plan")
                 } header: {
-                    Text("Prêt pour le hors ligne ?")
+                    SectionLabel("Contrôle avant embarquement")
                 } footer: {
-                    if let rateError { Text(rateError).foregroundStyle(.red) }
+                    if let rateError { Text(rateError).foregroundStyle(Theme.stamp) }
                 }
 
                 Section {
                     Button {
                         Task { await activate() }
                     } label: {
-                        Label("Activer le mode voyage", systemImage: "airplane.departure")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
+                        HStack {
+                            Text("Embarquer")
+                            Spacer()
+                            Image(systemName: "airplane").font(.system(size: 16, weight: .semibold))
+                        }
+                        .padding(.horizontal, 20)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(TicketButtonStyle(fill: Theme.ink, foreground: Theme.card))
                     .accessibilityIdentifier("activate-travel-mode")
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 } footer: {
-                    Text("Tu pourras revenir au mode préparation à tout moment.")
+                    Text("Le carnet devient un tableau des départs. Tu pourras revenir à la préparation à tout moment.")
+                        .padding(.top, 6)
                 }
             }
+            .paperBackground()
             .navigationTitle("Mode voyage")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -75,14 +80,25 @@ struct TravelModeSetupView: View {
 
     private func check(_ title: String, ok: Bool, detail: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle")
-                .foregroundStyle(ok ? Color.green : Color.orange)
-                .font(.title3)
-            VStack(alignment: .leading) {
-                Text(title)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+            ZStack {
+                if ok {
+                    StampMark(size: 30, color: Theme.sea)
+                } else {
+                    Text("!")
+                        .font(.ticket(16, weight: .bold))
+                        .foregroundStyle(Theme.ochre)
+                        .frame(width: 26, height: 26)
+                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.ochre, lineWidth: 1.4))
+                }
+            }
+            .frame(width: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.display(16, weight: .medium)).foregroundStyle(Theme.ink)
+                Text(detail).font(.ticket(10)).foregroundStyle(Theme.inkSoft)
             }
         }
+        .padding(.vertical, 2)
+        .listRowBackground(Theme.card)
     }
 
     private func refreshRate() async {

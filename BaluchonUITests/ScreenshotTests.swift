@@ -35,7 +35,7 @@ final class ScreenshotTests: XCTestCase {
         snapshot("05-tableau-de-bord-nouveau")
 
         // 4. Profil
-        app.tabBars.buttons["Profil"].tap()
+        app.tabBars.buttons["Passeport"].tap()
         pause(1)
         snapshot("06-profil")
 
@@ -62,12 +62,14 @@ final class ScreenshotTests: XCTestCase {
         pause(3)
         snapshot("13-avant-le-depart")
         app.buttons["activate-travel-mode"].tap()
+        pause(1.2)
+        snapshot("14-bon-voyage")
         XCTAssertTrue(app.tabBars.buttons["Phrases"].waitForExistence(timeout: 15))
-        pause(1)
-        snapshot("14-mode-voyage-aujourdhui")
+        pause(2.5)
+        snapshot("15-mode-voyage-aujourdhui")
 
-        for (tab, name) in [("Phrases", "15-phrases"), ("Argent", "16-convertisseur"),
-                            ("Compagnon", "17-compagnon"), ("Urgences", "18-urgences")] {
+        for (tab, name) in [("Phrases", "16-phrases"), ("Argent", "17-convertisseur"),
+                            ("Compagnon", "18-compagnon"), ("Urgences", "19-urgences")] {
             app.tabBars.buttons[tab].tap()
             pause(1)
             snapshot(name)

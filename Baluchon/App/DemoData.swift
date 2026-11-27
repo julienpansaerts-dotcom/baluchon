@@ -94,7 +94,7 @@ enum DemoData {
         }
 
         let start = Calendar.current.startOfDay(for: Date())
-        let trip = TripFactory.createTrip(name: "🇯🇵 Japon au printemps", destinationKey: "jp", places: items,
+        let trip = TripFactory.createTrip(name: "Japon au printemps", destinationKey: "jp", places: items,
                                           pace: .balanced, startDate: start, travelers: 2,
                                           profile: UserProfile.current, context: context)
 

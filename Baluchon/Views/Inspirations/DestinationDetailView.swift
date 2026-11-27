@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Détail d'une tuile : l'utilisateur garde ou écarte chaque élément détecté,
+/// Détail d'un timbre : l'utilisateur garde ou écarte chaque idée détectée,
 /// puis lance le projet.
 struct DestinationDetailView: View {
     let destinationKey: String
@@ -24,6 +24,7 @@ struct DestinationDetailView: View {
     }
 
     private var destination: Destination? { DestinationCatalog.destination(for: destinationKey) }
+    private var color: Color { DestinationStyle.color(for: destinationKey) }
     private var pending: [PlaceItem] { places.filter { $0.decision == .pending } }
     private var kept: [PlaceItem] { places.filter { $0.decision == .yes } }
     private var rejected: [PlaceItem] { places.filter { $0.decision == .no } }
@@ -31,19 +32,20 @@ struct DestinationDetailView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 16) {
-                    stat("\(kept.count)", "gardés", .green)
-                    stat("\(pending.count)", "à trier", .orange)
-                    stat("\(rejected.count)", "écartés", .secondary)
-                }
-                .frame(maxWidth: .infinity)
+                header
+                    .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
             if !pending.isEmpty {
-                Section("À trier — tu veux le faire ?") {
+                Section {
                     ForEach(pending) { place in
-                        PlaceRow(place: place, showsDecision: true)
+                        PlaceRow(place: place, showsDecision: true, accent: color)
+                            .cardRow()
                     }
+                } header: {
+                    SectionLabel("À trier — tu veux y aller ?", color: Theme.stamp)
                 }
             }
 
@@ -52,70 +54,94 @@ struct DestinationDetailView: View {
                 if !items.isEmpty {
                     Section {
                         ForEach(items) { place in
-                            PlaceRow(place: place, showsDecision: false)
+                            PlaceRow(place: place, showsDecision: false, accent: color)
+                                .cardRow()
                                 .swipeActions {
-                                    Button("Écarter") { place.decision = .no }.tint(.red)
+                                    Button("Écarter") { withAnimation { place.decision = .no } }.tint(Theme.stamp)
                                 }
                         }
                     } header: {
-                        Label(category.label, systemImage: category.symbol)
+                        SectionLabel(category.label)
                     }
                 }
             }
 
-            Section("Ajouter un lieu à la main") {
-                TextField("Nom du lieu, restaurant, activité…", text: $newPlaceName)
+            Section {
+                TextField("Un lieu, un resto, une activité…", text: $newPlaceName)
+                    .font(.display(16))
+                    .cardRow()
                 Picker("Catégorie", selection: $newPlaceCategory) {
-                    ForEach(PlaceCategory.allCases) { Label($0.label, systemImage: $0.symbol).tag($0) }
+                    ForEach(PlaceCategory.allCases) { Text($0.label).tag($0) }
                 }
-                Button("Ajouter") { addPlace() }
+                .cardRow()
+                Button("Ajouter au timbre") { addPlace() }
+                    .font(.ticket(13, weight: .bold))
                     .disabled(newPlaceName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .cardRow()
+            } header: {
+                SectionLabel("Ajouter à la main")
             }
 
             if !rejected.isEmpty {
                 Section {
-                    DisclosureGroup("Écartés (\(rejected.count))", isExpanded: $showRejected) {
+                    DisclosureGroup(isExpanded: $showRejected) {
                         ForEach(rejected) { place in
                             HStack {
-                                Text(place.name).foregroundStyle(.secondary)
+                                Text(place.name).foregroundStyle(Theme.inkSoft).strikethrough()
                                 Spacer()
-                                Button("Reprendre") { place.decision = .yes }
-                                    .font(.caption)
+                                Button("REPRENDRE") { withAnimation { place.decision = .yes } }
+                                    .buttonStyle(InkButtonStyle(color: Theme.inkSoft))
                             }
                         }
+                    } label: {
+                        Text("Écartés (\(rejected.count))").font(.ticket(13, weight: .semibold)).foregroundStyle(Theme.inkSoft)
                     }
+                    .cardRow()
                 }
             }
 
             if !inspirations.isEmpty {
-                Section("Sources (\(inspirations.count))") {
+                Section {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 14) {
                             ForEach(inspirations) { inspiration in
                                 sourceCard(inspiration)
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 4)
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                } header: {
+                    SectionLabel("D'où viennent ces idées")
                 }
             }
         }
-        .navigationTitle("\(destination?.flag ?? "") \(destination?.name ?? destinationKey)")
+        .paperBackground()
+        .navigationTitle(destination?.name ?? destinationKey)
+        .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             Button {
                 showingLaunch = true
             } label: {
-                Label("Lancer le projet", systemImage: "airplane.departure")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                HStack {
+                    Text("Lancer le projet")
+                    Spacer()
+                    Text("\(kept.count) idée\(kept.count > 1 ? "s" : "")")
+                        .font(.ticket(12, weight: .semibold))
+                        .opacity(0.85)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 15, weight: .bold))
+                }
+                .padding(.horizontal, 20)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(TicketButtonStyle(fill: kept.isEmpty ? Theme.inkSoft.opacity(0.4) : Theme.stamp))
             .disabled(kept.isEmpty)
             .accessibilityIdentifier("launch-project")
-            .padding()
-            .background(.bar)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
         }
         .sheet(isPresented: $showingLaunch) {
             LaunchTripView(destinationKey: destinationKey, places: kept) { trip in
@@ -125,25 +151,68 @@ struct DestinationDetailView: View {
         .navigationDestination(item: $createdTrip) { trip in
             TripDashboardView(trip: trip)
         }
+        .sensoryFeedback(.selection, trigger: kept.count)
     }
 
-    private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
-        VStack {
-            Text(value).font(.title2.bold()).foregroundStyle(color)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(DestinationStyle.code(for: destinationKey))
+                    .font(.ticket(40, weight: .bold))
+                    .tracking(3)
+                    .foregroundStyle(color)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(destination?.name ?? destinationKey)
+                        .font(.display(26, weight: .bold))
+                        .foregroundStyle(Theme.ink)
+                    if let destination {
+                        Text("\(destination.currencyCode) · \(destination.languageName)")
+                            .font(.ticket(11))
+                            .foregroundStyle(Theme.inkSoft)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            HStack(spacing: 0) {
+                counter(kept.count, "gardées", Theme.ink)
+                Rectangle().fill(Theme.rule).frame(width: 1, height: 30)
+                counter(pending.count, "à trier", Theme.stamp)
+                Rectangle().fill(Theme.rule).frame(width: 1, height: 30)
+                counter(rejected.count, "écartées", Theme.inkSoft)
+            }
+            .padding(.vertical, 10)
+            .overlay(alignment: .top) { DashedRule() }
+            .overlay(alignment: .bottom) { DashedRule() }
+        }
+    }
+
+    private func counter(_ value: Int, _ label: String, _ tint: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.display(24, weight: .bold))
+                .foregroundStyle(tint)
+                .contentTransition(.numericText())
+                .animation(.spring, value: value)
+            Text(label.uppercased()).font(.ticket(10, weight: .semibold)).tracking(1).foregroundStyle(Theme.inkSoft)
         }
         .frame(maxWidth: .infinity)
     }
 
     private func sourceCard(_ inspiration: Inspiration) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             DataImage(data: inspiration.imageData, placeholder: inspiration.source.symbol)
-                .frame(width: 120, height: 90)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            Label(inspiration.source.label, systemImage: inspiration.source.symbol)
-                .font(.caption2).foregroundStyle(.secondary)
-            Text(inspiration.title).font(.caption).lineLimit(2).frame(width: 120, alignment: .leading)
+                .frame(width: 112, height: 84)
+                .clipped()
+            Text(inspiration.source.label.uppercased())
+                .font(.ticket(9, weight: .bold)).foregroundStyle(Theme.inkSoft)
+            Text(inspiration.title)
+                .font(.caption).foregroundStyle(Theme.ink)
+                .lineLimit(2).frame(width: 112, alignment: .leading)
         }
+        .padding(6)
+        .background(Theme.card)
+        .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+        .rotationEffect(.degrees(DestinationStyle.tilt(for: inspiration.id.uuidString) * 0.8))
         .contextMenu {
             if let urlString = inspiration.urlString, let url = URL(string: urlString) {
                 Link(destination: url) { Label("Ouvrir le lien", systemImage: "safari") }
@@ -175,35 +244,35 @@ struct DestinationDetailView: View {
 struct PlaceRow: View {
     @Bindable var place: PlaceItem
     let showsDecision: Bool
+    var accent: Color = Theme.ink
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: place.category.symbol)
-                .frame(width: 32, height: 32)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(place.name).font(.body.weight(.medium))
-                HStack(spacing: 6) {
-                    if let city = place.city { Text(city) }
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(accent)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(place.name)
+                    .font(.display(17, weight: .medium))
+                    .foregroundStyle(Theme.ink)
+                HStack(spacing: 8) {
+                    if let city = place.city {
+                        Text(city.uppercased()).font(.ticket(10, weight: .semibold)).foregroundStyle(Theme.inkSoft)
+                    }
                     if place.needsBooking {
-                        Label("à réserver ~\(place.bookingLeadDays) j avant", systemImage: "clock.badge.exclamationmark")
-                            .foregroundStyle(.orange)
+                        InkTag(text: "Réserver \(place.bookingLeadDays) j avant", color: Theme.ochre)
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
-            Spacer()
+            Spacer(minLength: 8)
             if showsDecision {
-                Button { withAnimation { place.decision = .no } } label: {
-                    Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.red.opacity(0.8))
-                }
-                .buttonStyle(.plain)
-                Button { withAnimation { place.decision = .yes } } label: {
-                    Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.green)
-                }
-                .buttonStyle(.plain)
+                Button("NON") { withAnimation(.snappy) { place.decision = .no } }
+                    .buttonStyle(InkButtonStyle(color: Theme.inkSoft))
+                Button("OUI") { withAnimation(.snappy) { place.decision = .yes } }
+                    .buttonStyle(InkButtonStyle(color: accent, filled: true))
             }
         }
+        .padding(.vertical, 4)
     }
 }
